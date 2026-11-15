@@ -7,10 +7,10 @@ import (
 	"errors"
 	"time"
 
-	"fittrack/internal/domain"
-	"fittrack/internal/meal"
-	"fittrack/internal/user"
-	"fittrack/internal/workout"
+	"github.com/Crown-us/fit-track/internal/domain"
+	"github.com/Crown-us/fit-track/internal/meal"
+	"github.com/Crown-us/fit-track/internal/user"
+	"github.com/Crown-us/fit-track/internal/workout"
 )
 
 // DaysInWeek is the length of the weekly window.

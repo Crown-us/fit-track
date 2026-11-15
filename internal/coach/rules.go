@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"fittrack/internal/summary"
+	"github.com/Crown-us/fit-track/internal/summary"
 )
 
 // Rule identifiers returned to clients.

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"fittrack/internal/auth"
-	"fittrack/internal/domain"
+	"github.com/Crown-us/fit-track/internal/auth"
+	"github.com/Crown-us/fit-track/internal/domain"
 )
 
 // Input bounds. They reject typos and unit mix-ups (for example height in

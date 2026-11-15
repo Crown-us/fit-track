@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"fittrack/internal/domain"
+	"github.com/Crown-us/fit-track/internal/domain"
 )
 
 // maxBodyBytes bounds request bodies; every payload in this API is small.

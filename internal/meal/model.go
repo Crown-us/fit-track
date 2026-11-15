@@ -2,7 +2,7 @@
 // from the food table.
 package meal
 
-import "fittrack/internal/domain"
+import "github.com/Crown-us/fit-track/internal/domain"
 
 // gramsPerPortion is the reference portion the food table is expressed in.
 const gramsPerPortion = 100.0

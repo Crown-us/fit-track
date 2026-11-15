@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"fittrack/internal/summary"
+	"github.com/Crown-us/fit-track/internal/summary"
 )
 
 const (

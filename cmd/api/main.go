@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"fittrack/internal/auth"
-	"fittrack/internal/config"
-	"fittrack/internal/httpapi"
-	"fittrack/internal/store"
+	"github.com/Crown-us/fit-track/internal/auth"
+	"github.com/Crown-us/fit-track/internal/config"
+	"github.com/Crown-us/fit-track/internal/httpapi"
+	"github.com/Crown-us/fit-track/internal/store"
 )
 
 const (

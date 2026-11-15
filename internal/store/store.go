@@ -12,7 +12,7 @@ import (
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 
-	"fittrack/migrations"
+	"github.com/Crown-us/fit-track/migrations"
 )
 
 // connectionOptions are applied to every pooled connection. Foreign keys are

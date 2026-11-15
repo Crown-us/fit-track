@@ -31,4 +31,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - fittrack
+        - github.com/Crown-us/fit-track

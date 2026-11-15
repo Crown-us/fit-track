@@ -1,4 +1,4 @@
-module fittrack
+module github.com/Crown-us/fit-track
 
 go 1.27.4
 

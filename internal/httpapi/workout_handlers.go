@@ -3,8 +3,8 @@ package httpapi
 import (
 	"net/http"
 
-	"fittrack/internal/domain"
-	"fittrack/internal/workout"
+	"github.com/Crown-us/fit-track/internal/domain"
+	"github.com/Crown-us/fit-track/internal/workout"
 )
 
 func (a *api) registerWorkoutRoutes(mux *http.ServeMux) {

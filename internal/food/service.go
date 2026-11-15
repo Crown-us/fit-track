@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"fittrack/internal/domain"
+	"github.com/Crown-us/fit-track/internal/domain"
 )
 
 const (

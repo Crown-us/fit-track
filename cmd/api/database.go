@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	"fittrack/internal/food"
-	"fittrack/internal/store"
+	"github.com/Crown-us/fit-track/internal/food"
+	"github.com/Crown-us/fit-track/internal/store"
 )
 
 // prepareDatabase brings the schema and seed data up to date before the API

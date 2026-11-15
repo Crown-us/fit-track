@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"fittrack/internal/domain"
-	"fittrack/internal/store"
+	"github.com/Crown-us/fit-track/internal/domain"
+	"github.com/Crown-us/fit-track/internal/store"
 )
 
 // Repository persists users and profiles.

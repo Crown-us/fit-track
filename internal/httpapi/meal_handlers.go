@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"fittrack/internal/meal"
+	"github.com/Crown-us/fit-track/internal/meal"
 )
 
 func (a *api) registerMealRoutes(mux *http.ServeMux) {

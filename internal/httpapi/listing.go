@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"fittrack/internal/domain"
+	"github.com/Crown-us/fit-track/internal/domain"
 )
 
 type pageMeta struct {

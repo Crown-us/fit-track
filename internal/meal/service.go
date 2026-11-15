@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"fittrack/internal/domain"
-	"fittrack/internal/food"
+	"github.com/Crown-us/fit-track/internal/domain"
+	"github.com/Crown-us/fit-track/internal/food"
 )
 
 const (

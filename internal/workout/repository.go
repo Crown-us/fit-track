@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"fittrack/internal/domain"
+	"github.com/Crown-us/fit-track/internal/domain"
 )
 
 const selectColumns = `id, activity, duration_min, distance_km, performed_on, calories_burned`

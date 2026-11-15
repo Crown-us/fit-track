@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"fittrack/internal/domain"
-	"fittrack/internal/store"
+	"github.com/Crown-us/fit-track/internal/domain"
+	"github.com/Crown-us/fit-track/internal/store"
 )
 
 const selectColumns = `id, owner_id, name, kcal_per_100g, protein_g_per_100g,

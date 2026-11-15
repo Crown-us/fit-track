@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"fittrack/internal/domain"
+	"github.com/Crown-us/fit-track/internal/domain"
 )
 
 func TestTodayFollowsClockTimezone(t *testing.T) {

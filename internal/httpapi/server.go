@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"time"
 
-	"fittrack/internal/auth"
-	"fittrack/internal/coach"
-	"fittrack/internal/food"
-	"fittrack/internal/meal"
-	"fittrack/internal/summary"
-	"fittrack/internal/user"
-	"fittrack/internal/workout"
+	"github.com/Crown-us/fit-track/internal/auth"
+	"github.com/Crown-us/fit-track/internal/coach"
+	"github.com/Crown-us/fit-track/internal/food"
+	"github.com/Crown-us/fit-track/internal/meal"
+	"github.com/Crown-us/fit-track/internal/summary"
+	"github.com/Crown-us/fit-track/internal/user"
+	"github.com/Crown-us/fit-track/internal/workout"
 )
 
 const apiPrefix = "/api/v1"

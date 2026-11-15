@@ -4,7 +4,7 @@ package coach
 import (
 	"context"
 
-	"fittrack/internal/summary"
+	"github.com/Crown-us/fit-track/internal/summary"
 )
 
 // Disclaimer accompanies every piece of advice.

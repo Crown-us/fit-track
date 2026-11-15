@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"fittrack/internal/domain"
-	"fittrack/internal/user"
+	"github.com/Crown-us/fit-track/internal/domain"
+	"github.com/Crown-us/fit-track/internal/user"
 )
 
 const (

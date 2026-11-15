@@ -215,8 +215,6 @@ the authorization boundary between two users.
 - No rate limiting, refresh tokens, password reset or email verification.
 - A wrong HTTP method on a known path answers 404 rather than 405.
 - SQLite fits a single instance; it does not scale horizontally.
-- The module path is `fittrack`; rename it to the repository URL before
-  publishing it as an importable module.
 
 ## Roadmap
 

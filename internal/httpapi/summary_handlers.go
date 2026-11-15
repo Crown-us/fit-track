@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"fittrack/internal/domain"
+	"github.com/Crown-us/fit-track/internal/domain"
 )
 
 func (a *api) registerSummaryRoutes(mux *http.ServeMux) {
