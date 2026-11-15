@@ -10,6 +10,7 @@ import (
 
 	"fittrack/internal/auth"
 	"fittrack/internal/food"
+	"fittrack/internal/meal"
 	"fittrack/internal/user"
 	"fittrack/internal/workout"
 )
@@ -32,18 +33,21 @@ type api struct {
 	users    *user.Service
 	foods    *food.Service
 	workouts *workout.Service
+	meals    *meal.Service
 }
 
 // New builds the services from deps and returns the routed handler.
 func New(deps Deps) http.Handler {
 	users := user.NewService(user.NewRepository(deps.DB), deps.Hasher, deps.Tokens, deps.Now)
+	foods := food.NewService(food.NewRepository(deps.DB))
 	a := &api{
 		logger:   deps.Logger,
 		tokens:   deps.Tokens,
 		db:       deps.DB,
 		users:    users,
-		foods:    food.NewService(food.NewRepository(deps.DB)),
+		foods:    foods,
 		workouts: workout.NewService(workout.NewRepository(deps.DB), users),
+		meals:    meal.NewService(meal.NewRepository(deps.DB), foods),
 	}
 	mux := http.NewServeMux()
 	a.registerRoutes(mux)
@@ -62,6 +66,7 @@ func (a *api) registerRoutes(mux *http.ServeMux) {
 	mux.Handle("PUT "+apiPrefix+"/profile", a.authenticated(a.updateProfile))
 	a.registerFoodRoutes(mux)
 	a.registerWorkoutRoutes(mux)
+	a.registerMealRoutes(mux)
 }
 
 func (a *api) health(w http.ResponseWriter, r *http.Request) error {
