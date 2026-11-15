@@ -70,9 +70,25 @@ func (r *Repository) Profile(ctx context.Context, userID int64) (Profile, error)
 	return profile, nil
 }
 
-// SaveProfile creates or replaces the profile of profile.UserID.
-func (r *Repository) SaveProfile(ctx context.Context, profile Profile) error {
-	_, err := r.db.ExecContext(ctx, `
+// SaveProfile creates or replaces the profile of profile.UserID and records
+// its weight in the weight history for the day loggedOn. Both happen in one
+// transaction so the profile weight and the history can never disagree.
+func (r *Repository) SaveProfile(ctx context.Context, profile Profile, loggedOn string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	if err := saveProfile(ctx, tx, profile, loggedOn); err != nil {
+		return errors.Join(err, tx.Rollback())
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
+}
+
+func saveProfile(ctx context.Context, tx *sql.Tx, profile Profile, loggedOn string) error {
+	_, err := tx.ExecContext(ctx, `
 		INSERT INTO profiles
 			(user_id, sex, birth_date, height_cm, weight_kg, activity_level, goal, weekly_workout_goal)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -89,6 +105,13 @@ func (r *Repository) SaveProfile(ctx context.Context, profile Profile) error {
 		profile.ActivityLevel, profile.Goal, profile.WeeklyWorkoutGoal)
 	if err != nil {
 		return fmt.Errorf("upsert profile: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO weight_logs (user_id, logged_on, weight_kg) VALUES (?, ?, ?)
+		ON CONFLICT (user_id, logged_on) DO UPDATE SET weight_kg = excluded.weight_kg`,
+		profile.UserID, loggedOn, profile.WeightKg)
+	if err != nil {
+		return fmt.Errorf("log profile weight: %w", err)
 	}
 	return nil
 }

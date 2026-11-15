@@ -14,6 +14,7 @@ migrations and an embedded food seed: nothing else to deploy.
 - Calorie target from Mifflin-St Jeor BMR and an activity multiplier, with a
   deficit capped at 500 kcal/day that never drops below BMR
 - Workout log with calories estimated as `MET x weight (kg) x hours`
+- Weight history: past workouts and summaries use the weight of that day
 - Meal log with calories and macros computed from a food table
 - Food table seeded with common Indonesian foods, plus per-user custom foods
 - Daily and weekly summaries, and a weekly coach behind a `Coach` interface
@@ -27,13 +28,15 @@ flowchart TD
     H --> FS[food.Service]
     H --> WS[workout.Service]
     H --> MS[meal.Service]
+    H --> WTS[weight.Service]
     H --> SS[summary.Service]
     H --> C[coach.Coach<br/>RuleBased today, LLM later]
-    WS --> US
+    WS --> WTS
     MS --> FS
     SS --> US
     SS --> MS
     SS --> WR
+    SS --> WTS
     SS -.weekly summary.-> C
     US --> UR[user.Repository]
     FS --> FR[food.Repository]
@@ -43,6 +46,8 @@ flowchart TD
     FR --> DB
     WR --> DB
     MR --> DB
+    WTS --> WTR[weight.Repository]
+    WTR --> DB
 ```
 
 | Path | Responsibility |
@@ -55,6 +60,7 @@ flowchart TD
 | `internal/food` | Food table, seed loader, custom foods |
 | `internal/workout` | Workout log, MET table |
 | `internal/meal` | Meal log, nutrition math |
+| `internal/weight` | Weight history, weight as of a date |
 | `internal/summary` | Daily and weekly summaries |
 | `internal/coach` | `Coach` interface and rule-based rules |
 | `internal/store` | SQLite connection, migrations, driver error mapping |
@@ -124,6 +130,10 @@ curl -s -X POST $BASE/meals -H "$AUTH" -d '{
 curl -s -X POST $BASE/workouts -H "$AUTH" \
   -d '{"activity":"running","duration_min":30,"distance_km":5,"date":"2026-11-16"}'
 
+# Log a weight for a day (idempotent), then read the history
+curl -s -X PUT $BASE/weights/2026-11-16 -H "$AUTH" -d '{"weight_kg":69.4}'
+curl -s "$BASE/weights?from=2026-11-01" -H "$AUTH"
+
 # Summaries and coach
 curl -s "$BASE/summary/daily?date=2026-11-16" -H "$AUTH"
 curl -s "$BASE/summary/weekly?week_start=2026-11-16" -H "$AUTH"
@@ -156,6 +166,10 @@ List endpoints take `limit` (1-100, default 20) and `offset`, and return
   Compendium of Physical Activities; codes are cited in
   [internal/workout/met.go](internal/workout/met.go).
 - **Remaining**: `target - calories_in + calories_burned`.
+- **Weight of a day**: the most recent entry on or before that day, or the
+  earliest entry for days before the history starts. Targets and workout
+  calories of a day use that weight. Saving the profile logs its weight for
+  today, and the newest entry is always the profile's current weight.
 - **Coach rules** (thresholds are named constants in
   [internal/coach/rules.go](internal/coach/rules.go)): no logs for the last 2+
   days, workouts below the weekly goal, net intake above 110% or below 80% of
@@ -174,7 +188,7 @@ List endpoints take `limit` (1-100, default 20) and `offset`, and return
 - **Standard library router.** Go's `ServeMux` method and wildcard patterns
   cover this API; no router dependency.
 - **Workout calories are stored, meal nutrition is computed on read.** A
-  workout keeps the estimate made with the weight at logging time. Meal totals
+  workout keeps the estimate made with the weight of its date. Meal totals
   follow the food table, so correcting a food fixes past meals too; this is
   why a food that is used in a meal cannot be deleted.
 - **404 for other users' resources.** Ownership is part of every query, so
@@ -210,7 +224,8 @@ the authorization boundary between two users.
   workouts, because TDEE includes habitual activity. Pick the activity level
   for daily life outside logged workouts.
 - One MET value per activity; intensity and pace are not modelled.
-- No weight history: summaries of past weeks use the current target.
+- Only weight has a history. Past days use the current goal, activity level
+  and height.
 - One timezone per deployment, not per user.
 - No rate limiting, refresh tokens, password reset or email verification.
 - A wrong HTTP method on a known path answers 404 rather than 405.
@@ -219,7 +234,7 @@ the authorization boundary between two users.
 ## Roadmap
 
 1. Grow the food seed and take macro decimals from the printed TKPI.
-2. Weight log and target history.
+2. Weight trend in the coach (for example, losing faster than planned).
 3. LLM coach behind the existing `Coach` interface, with the rule-based coach
    as fallback.
 4. Rate limiting and refresh tokens.

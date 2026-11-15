@@ -14,6 +14,7 @@ import (
 	"github.com/Crown-us/fit-track/internal/meal"
 	"github.com/Crown-us/fit-track/internal/summary"
 	"github.com/Crown-us/fit-track/internal/user"
+	"github.com/Crown-us/fit-track/internal/weight"
 	"github.com/Crown-us/fit-track/internal/workout"
 )
 
@@ -36,6 +37,7 @@ type api struct {
 	foods     *food.Service
 	workouts  *workout.Service
 	meals     *meal.Service
+	weights   *weight.Service
 	summaries *summary.Service
 	coach     coach.Coach
 }
@@ -46,16 +48,20 @@ func New(deps Deps) http.Handler {
 	foods := food.NewService(food.NewRepository(deps.DB))
 	meals := meal.NewService(meal.NewRepository(deps.DB), foods)
 	workoutRepo := workout.NewRepository(deps.DB)
+	weights := weight.NewService(weight.NewRepository(deps.DB), deps.Now)
 	a := &api{
-		logger:    deps.Logger,
-		tokens:    deps.Tokens,
-		db:        deps.DB,
-		users:     users,
-		foods:     foods,
-		workouts:  workout.NewService(workoutRepo, users),
-		meals:     meals,
-		summaries: summary.NewService(users, meals, workoutRepo, deps.Now),
-		coach:     coach.NewRuleBased(),
+		logger:   deps.Logger,
+		tokens:   deps.Tokens,
+		db:       deps.DB,
+		users:    users,
+		foods:    foods,
+		workouts: workout.NewService(workoutRepo, weights),
+		meals:    meals,
+		weights:  weights,
+		summaries: summary.NewService(summary.Sources{
+			Profiles: users, Meals: meals, Workouts: workoutRepo, Weights: weights,
+		}, deps.Now),
+		coach: coach.NewRuleBased(),
 	}
 	mux := http.NewServeMux()
 	a.registerRoutes(mux)
@@ -75,6 +81,7 @@ func (a *api) registerRoutes(mux *http.ServeMux) {
 	a.registerFoodRoutes(mux)
 	a.registerWorkoutRoutes(mux)
 	a.registerMealRoutes(mux)
+	a.registerWeightRoutes(mux)
 	a.registerSummaryRoutes(mux)
 }
 

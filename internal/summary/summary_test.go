@@ -22,7 +22,7 @@ func TestTodayFollowsClockTimezone(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := NewService(nil, nil, nil, func() time.Time { return instant.In(tt.location) })
+			service := NewService(Sources{}, func() time.Time { return instant.In(tt.location) })
 			if got := service.Today().Format(domain.DateLayout); got != tt.wantToday {
 				t.Errorf("Today() = %s, want %s", got, tt.wantToday)
 			}
@@ -37,7 +37,7 @@ func TestCurrentWeekStartIsMonday(t *testing.T) {
 	// 2026-11-09 is a Monday; every day of that week maps back to it.
 	for offset := range DaysInWeek {
 		now := time.Date(2026, time.November, 9+offset, 10, 0, 0, 0, time.UTC)
-		service := NewService(nil, nil, nil, func() time.Time { return now })
+		service := NewService(Sources{}, func() time.Time { return now })
 		if got := service.CurrentWeekStart().Format(domain.DateLayout); got != "2026-11-09" {
 			t.Errorf("CurrentWeekStart() on %s = %s, want 2026-11-09", now.Format(domain.DateLayout), got)
 		}

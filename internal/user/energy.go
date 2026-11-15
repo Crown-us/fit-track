@@ -1,6 +1,11 @@
 package user
 
-import "time"
+import (
+	"fmt"
+	"time"
+
+	"github.com/Crown-us/fit-track/internal/domain"
+)
 
 // Mifflin-St Jeor coefficients (Mifflin MD, St Jeor ST, et al. "A new
 // predictive equation for resting energy expenditure in healthy individuals."
@@ -68,6 +73,26 @@ func DailyTarget(bmr, tdee float64, goal Goal) float64 {
 	default:
 		return tdee
 	}
+}
+
+// Energy is the set of energy needs derived from a profile.
+type Energy struct {
+	BMRKcal    float64
+	TDEEKcal   float64
+	TargetKcal float64
+}
+
+// EnergyFor computes the energy needs of profile at weightKg on the given
+// day. Weight and day are parameters so past days can be evaluated with the
+// weight and age the user had then.
+func EnergyFor(profile Profile, weightKg float64, on time.Time) (Energy, error) {
+	birth, err := domain.ParseDate(profile.BirthDate)
+	if err != nil {
+		return Energy{}, fmt.Errorf("parse birth date: %w", err)
+	}
+	bmr := BMR(profile.Sex, weightKg, profile.HeightCm, AgeOn(birth, on))
+	tdee := TDEE(bmr, profile.ActivityLevel)
+	return Energy{BMRKcal: bmr, TDEEKcal: tdee, TargetKcal: DailyTarget(bmr, tdee, profile.Goal)}, nil
 }
 
 // AgeOn returns the age in completed years on the given day.

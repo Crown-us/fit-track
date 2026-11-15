@@ -2,10 +2,8 @@ package workout
 
 import (
 	"context"
-	"errors"
 
 	"github.com/Crown-us/fit-track/internal/domain"
-	"github.com/Crown-us/fit-track/internal/user"
 )
 
 const (
@@ -22,20 +20,20 @@ type Input struct {
 	Date        string   `json:"date"`
 }
 
-// ProfileReader provides the body weight the calorie estimate depends on.
-type ProfileReader interface {
-	Profile(ctx context.Context, userID int64) (user.ProfileView, error)
+// WeightReader provides the body weight that applied on a given day.
+type WeightReader interface {
+	WeightOn(ctx context.Context, userID int64, date string) (float64, error)
 }
 
 // Service implements workout logging.
 type Service struct {
-	repo     *Repository
-	profiles ProfileReader
+	repo    *Repository
+	weights WeightReader
 }
 
 // NewService wires the workout service.
-func NewService(repo *Repository, profiles ProfileReader) *Service {
-	return &Service{repo: repo, profiles: profiles}
+func NewService(repo *Repository, weights WeightReader) *Service {
+	return &Service{repo: repo, weights: weights}
 }
 
 // List returns a page of userID's workouts within dates.
@@ -80,16 +78,14 @@ func (s *Service) Delete(ctx context.Context, userID, id int64) error {
 	return s.repo.Delete(ctx, userID, id)
 }
 
-// build validates input and computes calories with the user's current weight.
-// The estimate is stored, so later weight changes do not rewrite history.
+// build validates input and computes calories with the weight the user had
+// on the workout date. The estimate is stored, so later weight changes do not
+// rewrite history.
 func (s *Service) build(ctx context.Context, userID int64, input Input) (Workout, error) {
 	if err := validate(input); err != nil {
 		return Workout{}, err
 	}
-	profile, err := s.profiles.Profile(ctx, userID)
-	if errors.Is(err, domain.ErrNotFound) {
-		return Workout{}, domain.ErrProfileRequired
-	}
+	weightKg, err := s.weights.WeightOn(ctx, userID, input.Date)
 	if err != nil {
 		return Workout{}, err
 	}
@@ -99,7 +95,7 @@ func (s *Service) build(ctx context.Context, userID int64, input Input) (Workout
 		DurationMin:    input.DurationMin,
 		DistanceKm:     input.DistanceKm,
 		Date:           input.Date,
-		CaloriesBurned: domain.Round1(CaloriesBurned(met, profile.WeightKg, input.DurationMin)),
+		CaloriesBurned: domain.Round1(CaloriesBurned(met, weightKg, input.DurationMin)),
 	}, nil
 }
 

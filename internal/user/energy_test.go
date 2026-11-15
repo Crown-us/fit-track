@@ -97,3 +97,44 @@ func TestAgeOn(t *testing.T) {
 		})
 	}
 }
+
+func TestEnergyFor(t *testing.T) {
+	profile := Profile{
+		Sex: SexMale, BirthDate: "1996-06-15", HeightCm: 175,
+		ActivityLevel: ActivityModerate, Goal: GoalLose,
+	}
+	tests := []struct {
+		name       string
+		weightKg   float64
+		on         time.Time
+		wantBMR    float64
+		wantTarget float64
+	}{
+		// Age 30: 10*70 + 6.25*175 - 150 + 5 = 1648.75; x1.55 - 500.
+		{name: "current weight", weightKg: 70, on: time.Date(2026, time.November, 15, 0, 0, 0, 0, time.UTC),
+			wantBMR: 1648.75, wantTarget: 2055.5625},
+		// A heavier past weight raises the target.
+		{name: "heavier weight", weightKg: 72, on: time.Date(2026, time.November, 10, 0, 0, 0, 0, time.UTC),
+			wantBMR: 1668.75, wantTarget: 2086.5625},
+		// Before the birthday the user is still 29, which adds 5 kcal to BMR.
+		{name: "younger on an earlier day", weightKg: 70, on: time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
+			wantBMR: 1653.75, wantTarget: 2063.3125},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			energy, err := EnergyFor(profile, tt.weightKg, tt.on)
+			if err != nil {
+				t.Fatalf("EnergyFor() error = %v", err)
+			}
+			if !isClose(energy.BMRKcal, tt.wantBMR) || !isClose(energy.TargetKcal, tt.wantTarget) {
+				t.Errorf("EnergyFor() = %+v, want BMR %v target %v", energy, tt.wantBMR, tt.wantTarget)
+			}
+		})
+	}
+}
+
+func TestEnergyForRejectsBadBirthDate(t *testing.T) {
+	if _, err := EnergyFor(Profile{BirthDate: "not-a-date"}, 70, time.Now()); err == nil {
+		t.Error("EnergyFor() accepted an invalid birth date")
+	}
+}

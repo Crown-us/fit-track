@@ -15,7 +15,7 @@ const (
 
 // day builds an elapsed day with one meal of the given intake and protein.
 func day(caloriesIn, proteinG float64) summary.Day {
-	return summary.Day{CaloriesIn: caloriesIn, ProteinG: proteinG, MealCount: 1, IsElapsed: true}
+	return summary.Day{CaloriesIn: caloriesIn, ProteinG: proteinG, MealCount: 1, IsElapsed: true, TargetKcal: testTarget}
 }
 
 func emptyDay() summary.Day {
@@ -154,7 +154,8 @@ func TestEvaluate(t *testing.T) {
 
 func TestNetCaloriesUseExercise(t *testing.T) {
 	// 2300 eaten minus 300 burned is on target, so the over rule stays quiet.
-	active := summary.Day{CaloriesIn: 2300, CaloriesBurned: 300, ProteinG: 80, MealCount: 1, WorkoutCount: 1, IsElapsed: true}
+	active := day(2300, 80)
+	active.CaloriesBurned, active.WorkoutCount = 300, 1
 	normal := day(testTarget, 80)
 	week := withDays(active, active, active, normal, normal, normal, normal)
 	if got := firedRules(Evaluate(week)); !slices.Equal(got, []string{RuleOnTrack}) {

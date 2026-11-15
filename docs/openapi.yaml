@@ -15,6 +15,7 @@ tags:
   - name: foods
   - name: workouts
   - name: meals
+  - name: weights
   - name: summary
   - name: coach
 security:
@@ -248,7 +249,7 @@ paths:
     post:
       tags: [workouts]
       summary: Log a workout
-      description: Calories are estimated as MET x weight (kg) x hours with the current profile weight.
+      description: Calories are estimated as MET x weight (kg) x hours with the weight that applied on the workout date.
       requestBody:
         required: true
         content:
@@ -387,11 +388,79 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/v1/weights:
+    get:
+      tags: [weights]
+      summary: List your weight history, newest first
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: A page of weight entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WeightEntry" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/weights/{date}:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        description: The day the weight applies to. Cannot be in the future.
+        schema: { type: string, format: date }
+    put:
+      tags: [weights]
+      summary: Log or replace the weight of one day
+      description: >
+        A day has one weight, so this is idempotent. The most recent entry is
+        the current weight shown in the profile. Saving the profile logs its
+        weight for today.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weight_kg]
+              properties:
+                weight_kg: { type: number, minimum: 20, maximum: 500 }
+      responses:
+        "200":
+          description: The saved entry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WeightEntry" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [weights]
+      summary: Delete the weight of one day
+      description: The only remaining entry cannot be deleted (422).
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
   /api/v1/summary/daily:
     get:
       tags: [summary]
       summary: Energy balance of one day
-      description: remaining_kcal = target_kcal - calories_in + calories_burned.
+      description: >
+        remaining_kcal = target_kcal - calories_in + calories_burned. The target
+        is computed with the weight that applied on that day.
       parameters:
         - name: date
           in: query
@@ -618,6 +687,11 @@ components:
           properties:
             id: { type: integer, format: int64 }
             calories_burned: { type: number }
+    WeightEntry:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        weight_kg: { type: number }
     Nutrition:
       type: object
       properties:
@@ -668,6 +742,8 @@ components:
         fat_g: { type: number }
         meal_count: { type: integer }
         workout_count: { type: integer }
+        weight_kg: { type: number, description: Weight that applied on this day. }
+        target_kcal: { type: number, description: Calorie target for this day. }
         is_elapsed:
           type: boolean
           description: False for days after today.
@@ -676,15 +752,14 @@ components:
         - $ref: "#/components/schemas/Day"
         - type: object
           properties:
-            target_kcal: { type: number }
             remaining_kcal: { type: number }
     WeeklySummary:
       type: object
       properties:
         week_start: { type: string, format: date }
         week_end: { type: string, format: date }
-        target_kcal: { type: number }
-        weight_kg: { type: number }
+        target_kcal: { type: number, description: Target of the most recent elapsed day. }
+        weight_kg: { type: number, description: Weight of the most recent elapsed day. }
         workout_goal: { type: integer }
         workout_count: { type: integer }
         total_calories_in: { type: number }

@@ -61,8 +61,9 @@ func workoutsBelowGoal(week summary.Weekly) (Message, bool) {
 }
 
 func caloriesOverTarget(week summary.Weekly) (Message, bool) {
-	limit := week.TargetKcal * overTargetRatio
-	days := countMealDays(week, func(day summary.Day) bool { return day.NetKcal() > limit })
+	days := countMealDays(week, func(day summary.Day) bool {
+		return day.NetKcal() > day.TargetKcal*overTargetRatio
+	})
 	if days < minDeviationDays {
 		return Message{}, false
 	}
@@ -72,8 +73,9 @@ func caloriesOverTarget(week summary.Weekly) (Message, bool) {
 }
 
 func caloriesUnderTarget(week summary.Weekly) (Message, bool) {
-	limit := week.TargetKcal * underTargetRatio
-	days := countMealDays(week, func(day summary.Day) bool { return day.NetKcal() < limit })
+	days := countMealDays(week, func(day summary.Day) bool {
+		return day.NetKcal() < day.TargetKcal*underTargetRatio
+	})
 	if days < minDeviationDays {
 		return Message{}, false
 	}

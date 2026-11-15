@@ -22,10 +22,12 @@ const (
 	maxAgeYears  = 120
 	minHeightCm  = 50.0
 	maxHeightCm  = 280.0
-	minWeightKg  = 20.0
-	maxWeightKg  = 500.0
 	maxWorkouts  = 14
 	maxEmailSize = 254
+
+	// MinWeightKg and MaxWeightKg bound every weight the API accepts.
+	MinWeightKg = 20.0
+	MaxWeightKg = 500.0
 
 	// DefaultWeeklyWorkoutGoal is used when the profile does not set one.
 	DefaultWeeklyWorkoutGoal = 3
@@ -108,24 +110,23 @@ func (s *Service) UpdateProfile(ctx context.Context, userID int64, input Profile
 	if input.WeeklyWorkoutGoal != nil {
 		profile.WeeklyWorkoutGoal = *input.WeeklyWorkoutGoal
 	}
-	if err := s.repo.SaveProfile(ctx, profile); err != nil {
+	// The profile weight is also today's entry in the weight history.
+	if err := s.repo.SaveProfile(ctx, profile, s.now().Format(domain.DateLayout)); err != nil {
 		return ProfileView{}, err
 	}
 	return s.view(profile)
 }
 
 func (s *Service) view(profile Profile) (ProfileView, error) {
-	birth, err := domain.ParseDate(profile.BirthDate)
+	energy, err := EnergyFor(profile, profile.WeightKg, s.now())
 	if err != nil {
 		return ProfileView{}, err
 	}
-	bmr := BMR(profile.Sex, profile.WeightKg, profile.HeightCm, AgeOn(birth, s.now()))
-	tdee := TDEE(bmr, profile.ActivityLevel)
 	return ProfileView{
 		Profile:         profile,
-		BMRKcal:         domain.Round1(bmr),
-		TDEEKcal:        domain.Round1(tdee),
-		DailyTargetKcal: domain.Round1(DailyTarget(bmr, tdee, profile.Goal)),
+		BMRKcal:         domain.Round1(energy.BMRKcal),
+		TDEEKcal:        domain.Round1(energy.TDEEKcal),
+		DailyTargetKcal: domain.Round1(energy.TargetKcal),
 	}, nil
 }
 
@@ -139,7 +140,7 @@ func (s *Service) validateProfile(input ProfileInput) error {
 		v.Check(age >= minAgeYears && age <= maxAgeYears, "birth_date", "age must be between 13 and 120 years")
 	}
 	v.Check(input.HeightCm >= minHeightCm && input.HeightCm <= maxHeightCm, "height_cm", "must be between 50 and 280")
-	v.Check(input.WeightKg >= minWeightKg && input.WeightKg <= maxWeightKg, "weight_kg", "must be between 20 and 500")
+	v.Check(input.WeightKg >= MinWeightKg && input.WeightKg <= MaxWeightKg, "weight_kg", "must be between 20 and 500")
 	v.Check(IsValidActivityLevel(input.ActivityLevel), "activity_level",
 		"must be sedentary, light, moderate, active or very_active")
 	v.Check(input.Goal == GoalLose || input.Goal == GoalMaintain || input.Goal == GoalGain,
