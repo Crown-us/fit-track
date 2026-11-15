@@ -16,7 +16,7 @@ func mustJSON(t *testing.T, value any) []byte {
 	return encoded
 }
 
-// logLunch logs 200 g rice and 100 g tempe (561 kcal, 26.8 g protein).
+// logLunch logs 200 g rice and 100 g tempe (561 kcal, 26 g protein).
 func logLunch(api *testAPI, token, date string) map[string]any {
 	api.t.Helper()
 	return api.mustCall(http.StatusCreated, http.MethodPost, "/api/v1/meals", token, map[string]any{
@@ -53,7 +53,7 @@ func TestDailySummary(t *testing.T) {
 	wantNumber(t, daily, "calories_burned", 343)
 	wantNumber(t, daily, "target_kcal", 2055.6)
 	wantNumber(t, daily, "remaining_kcal", 1837.6)
-	wantNumber(t, daily, "protein_g", 26.8)
+	wantNumber(t, daily, "protein_g", 26)
 	wantNumber(t, daily, "meal_count", 1)
 	wantNumber(t, daily, "workout_count", 1)
 
@@ -96,7 +96,7 @@ func TestWeeklySummaryAndCoach(t *testing.T) {
 		fired = append(fired, message.(map[string]any)["rule"].(string))
 	}
 	// 5 trailing silent days, 1 of 3 workouts, 561 kcal (net) on 2 days only,
-	// and 26.8 g protein against a 56 g minimum.
+	// and 26 g protein against a 56 g minimum.
 	want := []string{"no_recent_logs", "workouts_below_goal", "low_protein"}
 	if !slices.Equal(fired, want) {
 		t.Errorf("coach fired %v, want %v", fired, want)

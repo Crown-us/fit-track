@@ -179,13 +179,13 @@ func TestMealFlow(t *testing.T) {
 		{"food_id": rice, "grams": 200}, {"food_id": tempe, "grams": 100},
 	}}
 
-	// Rice 200 g: 360 kcal, 6 P, 79.6 C, 0.6 F. Tempe 100 g: 201 kcal, 20.8 P, 13.5 C, 8.8 F.
+	// Rice 200 g: 360 kcal, 6 P, 78 C, 0 F. Tempe 100 g: 201 kcal, 20 P, 13 C, 8 F.
 	created := api.mustCall(http.StatusCreated, http.MethodPost, "/api/v1/meals", token, lunch)
 	totals := created["totals"].(map[string]any)
 	wantNumber(t, totals, "kcal", 561)
-	wantNumber(t, totals, "protein_g", 26.8)
-	wantNumber(t, totals, "carbs_g", 93.1)
-	wantNumber(t, totals, "fat_g", 9.4)
+	wantNumber(t, totals, "protein_g", 26)
+	wantNumber(t, totals, "carbs_g", 91)
+	wantNumber(t, totals, "fat_g", 8)
 	if got := len(created["items"].([]any)); got != 2 {
 		t.Fatalf("items = %d, want 2", got)
 	}

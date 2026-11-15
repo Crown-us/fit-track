@@ -201,10 +201,11 @@ the authorization boundary between two users.
 
 ## Known limitations
 
-- **Food data is unverified.** All 13 seeded rows are marked
-  `needs_verification`: the values were entered from memory of TKPI and must be
-  checked against the published table before being trusted. The seed lives in
-  [internal/food/seed/foods.csv](internal/food/seed/foods.csv).
+- **Food macros are in whole grams.** The 13 seeded rows match the online TKPI
+  database (panganku.org) as read on 2026-11-16, and each row cites its TKPI
+  code. That site shows protein, fat and carbohydrate truncated to whole
+  grams, so macros can be up to 1 g per 100 g lower than the printed table.
+  See [internal/food/seed/README.md](internal/food/seed/README.md).
 - Exercise is counted twice if the activity level already includes the logged
   workouts, because TDEE includes habitual activity. Pick the activity level
   for daily life outside logged workouts.
@@ -219,7 +220,7 @@ the authorization boundary between two users.
 
 ## Roadmap
 
-1. Verify the food seed against TKPI and grow it.
+1. Grow the food seed and take macro decimals from the printed TKPI.
 2. Weight log and target history.
 3. LLM coach behind the existing `Coach` interface, with the rule-based coach
    as fallback.
