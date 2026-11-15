@@ -19,6 +19,10 @@ const (
 	// defaultTimezone decides when a calendar day starts. The product targets
 	// Indonesian users, so the default is Western Indonesia Time.
 	defaultTimezone = "Asia/Jakarta"
+	// defaultAuthRateLimit and defaultAuthRateWindow allow ordinary retries
+	// (a few typos) while making password guessing impractically slow.
+	defaultAuthRateLimit  = 10
+	defaultAuthRateWindow = time.Minute
 
 	// minJWTSecretBytes matches the HS256 key size (256 bits) so the secret
 	// is never weaker than the signature algorithm.
@@ -36,23 +40,35 @@ type Config struct {
 	// Location is the timezone in which "today" and week boundaries are
 	// evaluated.
 	Location *time.Location
+	// AuthRateLimit is how many register/login requests one client may make
+	// per AuthRateWindow.
+	AuthRateLimit  int
+	AuthRateWindow time.Duration
+	// TrustProxyHeaders makes the API read the client address from
+	// X-Forwarded-For. Enable it only behind a reverse proxy that sets it.
+	TrustProxyHeaders bool
 }
 
 // Load reads configuration through getenv (os.Getenv in production) so tests
 // can supply values without touching the process environment.
 func Load(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		HTTPAddr:     valueOr(getenv("HTTP_ADDR"), defaultHTTPAddr),
-		DatabasePath: valueOr(getenv("DATABASE_PATH"), defaultDatabasePath),
-		JWTSecret:    getenv("JWT_SECRET"),
-		JWTTTL:       defaultJWTTTL,
-		BcryptCost:   bcrypt.DefaultCost,
-		LogLevel:     slog.LevelInfo,
+		HTTPAddr:       valueOr(getenv("HTTP_ADDR"), defaultHTTPAddr),
+		DatabasePath:   valueOr(getenv("DATABASE_PATH"), defaultDatabasePath),
+		JWTSecret:      getenv("JWT_SECRET"),
+		JWTTTL:         defaultJWTTTL,
+		BcryptCost:     bcrypt.DefaultCost,
+		LogLevel:       slog.LevelInfo,
+		AuthRateLimit:  defaultAuthRateLimit,
+		AuthRateWindow: defaultAuthRateWindow,
 	}
 	if len(cfg.JWTSecret) < minJWTSecretBytes {
 		return Config{}, fmt.Errorf("JWT_SECRET must be at least %d bytes", minJWTSecretBytes)
 	}
 	if err := loadOptional(getenv, &cfg); err != nil {
+		return Config{}, err
+	}
+	if err := loadRateLimit(getenv, &cfg); err != nil {
 		return Config{}, err
 	}
 	location, err := time.LoadLocation(valueOr(getenv("APP_TIMEZONE"), defaultTimezone))
@@ -82,6 +98,31 @@ func loadOptional(getenv func(string) string, cfg *Config) error {
 		if err := cfg.LogLevel.UnmarshalText([]byte(raw)); err != nil {
 			return fmt.Errorf("LOG_LEVEL: %w", err)
 		}
+	}
+	return nil
+}
+
+func loadRateLimit(getenv func(string) string, cfg *Config) error {
+	if raw := getenv("AUTH_RATE_LIMIT"); raw != "" {
+		limit, err := strconv.Atoi(raw)
+		if err != nil || limit < 1 {
+			return errors.New("AUTH_RATE_LIMIT must be a positive integer")
+		}
+		cfg.AuthRateLimit = limit
+	}
+	if raw := getenv("AUTH_RATE_WINDOW"); raw != "" {
+		window, err := time.ParseDuration(raw)
+		if err != nil || window <= 0 {
+			return errors.New("AUTH_RATE_WINDOW must be a positive duration such as 1m")
+		}
+		cfg.AuthRateWindow = window
+	}
+	if raw := getenv("TRUST_PROXY_HEADERS"); raw != "" {
+		isTrusted, err := strconv.ParseBool(raw)
+		if err != nil {
+			return errors.New("TRUST_PROXY_HEADERS must be true or false")
+		}
+		cfg.TrustProxyHeaders = isTrusted
 	}
 	return nil
 }

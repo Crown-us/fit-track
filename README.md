@@ -56,6 +56,7 @@ flowchart TD
 | `internal/config` | Environment configuration |
 | `internal/httpapi` | Routes, middleware, thin handlers, JSON error format |
 | `internal/auth` | Password hashing and JWT |
+| `internal/ratelimit` | In-memory fixed-window rate limiter |
 | `internal/user` | Accounts, profiles, BMR / TDEE / target |
 | `internal/food` | Food table, seed loader, custom foods |
 | `internal/workout` | Workout log, MET table |
@@ -100,6 +101,9 @@ JWT_SECRET=$(openssl rand -base64 48) docker compose up --build
 | `BCRYPT_COST` | `10` | Password hashing cost |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `APP_TIMEZONE` | `Asia/Jakarta` | Timezone that decides when a day starts |
+| `AUTH_RATE_LIMIT` | `10` | Register and login attempts per client address per window |
+| `AUTH_RATE_WINDOW` | `1m` | Length of the rate-limit window |
+| `TRUST_PROXY_HEADERS` | `false` | Read the client address from `X-Forwarded-For`; only behind a trusted proxy |
 
 Development commands: `make test`, `make lint`, `make fmt`, `make build`.
 
@@ -191,6 +195,10 @@ List endpoints take `limit` (1-100, default 20) and `offset`, and return
   workout keeps the estimate made with the weight of its date. Meal totals
   follow the food table, so correcting a food fixes past meals too; this is
   why a food that is used in a meal cannot be deleted.
+- **Rate limit on register and login only.** These are the endpoints an
+  anonymous client can hammer. The limiter is a small fixed-window counter
+  in the standard library rather than a dependency, and `X-Forwarded-For` is
+  ignored unless a trusted proxy is declared, since clients can forge it.
 - **404 for other users' resources.** Ownership is part of every query, so
   another user's data is indistinguishable from data that does not exist.
 - **Dates are calendar dates.** Clients send the local date they mean; the
@@ -227,7 +235,11 @@ the authorization boundary between two users.
 - Only weight has a history. Past days use the current goal, activity level
   and height.
 - One timezone per deployment, not per user.
-- No rate limiting, refresh tokens, password reset or email verification.
+- Rate limiting is per client address and in memory: it resets on restart,
+  is not shared between instances, and does not stop guessing spread over
+  many addresses. There is no per-account lockout on purpose, because that
+  would let anyone lock a user out.
+- No refresh tokens, password reset or email verification.
 - A wrong HTTP method on a known path answers 404 rather than 405.
 - SQLite fits a single instance; it does not scale horizontally.
 
@@ -237,6 +249,6 @@ the authorization boundary between two users.
 2. Weight trend in the coach (for example, losing faster than planned).
 3. LLM coach behind the existing `Coach` interface, with the rule-based coach
    as fallback.
-4. Rate limiting and refresh tokens.
+4. Refresh tokens and password reset.
 5. Per-user timezone.
 6. PostgreSQL option behind the repositories.

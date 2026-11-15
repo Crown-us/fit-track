@@ -24,6 +24,9 @@ func TestLoad(t *testing.T) {
 		{name: "bad ttl", values: map[string]string{"JWT_SECRET": secret, "JWT_TTL": "soon"}, wantError: true},
 		{name: "bad cost", values: map[string]string{"JWT_SECRET": secret, "BCRYPT_COST": "99"}, wantError: true},
 		{name: "bad level", values: map[string]string{"JWT_SECRET": secret, "LOG_LEVEL": "loud"}, wantError: true},
+		{name: "zero rate limit", values: map[string]string{"JWT_SECRET": secret, "AUTH_RATE_LIMIT": "0"}, wantError: true},
+		{name: "bad rate window", values: map[string]string{"JWT_SECRET": secret, "AUTH_RATE_WINDOW": "-1m"}, wantError: true},
+		{name: "bad proxy flag", values: map[string]string{"JWT_SECRET": secret, "TRUST_PROXY_HEADERS": "maybe"}, wantError: true},
 		{name: "bad timezone", values: map[string]string{"JWT_SECRET": secret, "APP_TIMEZONE": "Mars/Olympus"}, wantError: true},
 	}
 	for _, tt := range tests {

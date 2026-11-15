@@ -18,6 +18,7 @@ import (
 	"github.com/Crown-us/fit-track/internal/auth"
 	"github.com/Crown-us/fit-track/internal/food"
 	"github.com/Crown-us/fit-track/internal/httpapi"
+	"github.com/Crown-us/fit-track/internal/ratelimit"
 	"github.com/Crown-us/fit-track/internal/store"
 )
 
@@ -27,6 +28,9 @@ const (
 	// today is a Sunday; its week starts on Monday 2026-11-09.
 	today     = "2026-11-15"
 	weekStart = "2026-11-09"
+	// generousAuthLimit keeps the rate limiter out of the way of tests that
+	// are not about it.
+	generousAuthLimit = 1000
 )
 
 // fixedNow pins "today" so age, elapsed days and defaults are deterministic.
@@ -38,9 +42,18 @@ func fixedNow() time.Time {
 type testAPI struct {
 	t       *testing.T
 	baseURL string
+	// lastHeader holds the response headers of the most recent call.
+	lastHeader http.Header
 }
 
 func newTestAPI(t *testing.T) *testAPI {
+	t.Helper()
+	return newTestAPIWithAuthLimit(t, generousAuthLimit)
+}
+
+// newTestAPIWithAuthLimit starts an API whose register/login endpoints allow
+// authLimit requests per minute.
+func newTestAPIWithAuthLimit(t *testing.T, authLimit int) *testAPI {
 	t.Helper()
 	ctx := context.Background()
 	db, err := store.Open(ctx, filepath.Join(t.TempDir(), "test.db"))
@@ -54,11 +67,12 @@ func newTestAPI(t *testing.T) *testAPI {
 		t.Fatalf("seed: %v", err)
 	}
 	server := httptest.NewServer(httpapi.New(httpapi.Deps{
-		DB:     db,
-		Tokens: auth.NewTokenManager(testSecret, time.Hour, fixedNow),
-		Hasher: auth.NewPasswordHasher(bcrypt.MinCost),
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Now:    fixedNow,
+		DB:          db,
+		Tokens:      auth.NewTokenManager(testSecret, time.Hour, fixedNow),
+		Hasher:      auth.NewPasswordHasher(bcrypt.MinCost),
+		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Now:         fixedNow,
+		AuthLimiter: ratelimit.New(authLimit, time.Minute, fixedNow),
 	}))
 	t.Cleanup(func() {
 		server.Close()
@@ -109,6 +123,7 @@ func (a *testAPI) callRaw(method, path, token string, body any) (int, []byte) {
 		a.t.Fatalf("%s %s: %v", method, path, err)
 	}
 	defer response.Body.Close() //nolint:errcheck // Nothing to do about a failed close in a test.
+	a.lastHeader = response.Header
 	raw, err := io.ReadAll(response.Body)
 	if err != nil {
 		a.t.Fatalf("read response: %v", err)

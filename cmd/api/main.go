@@ -16,6 +16,7 @@ import (
 	"github.com/Crown-us/fit-track/internal/auth"
 	"github.com/Crown-us/fit-track/internal/config"
 	"github.com/Crown-us/fit-track/internal/httpapi"
+	"github.com/Crown-us/fit-track/internal/ratelimit"
 	"github.com/Crown-us/fit-track/internal/store"
 )
 
@@ -62,11 +63,13 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 	}
 
 	handler := httpapi.New(httpapi.Deps{
-		DB:     db,
-		Tokens: auth.NewTokenManager(cfg.JWTSecret, cfg.JWTTTL, time.Now),
-		Hasher: auth.NewPasswordHasher(cfg.BcryptCost),
-		Logger: logger,
-		Now:    func() time.Time { return time.Now().In(cfg.Location) },
+		DB:                db,
+		Tokens:            auth.NewTokenManager(cfg.JWTSecret, cfg.JWTTTL, time.Now),
+		Hasher:            auth.NewPasswordHasher(cfg.BcryptCost),
+		Logger:            logger,
+		Now:               func() time.Time { return time.Now().In(cfg.Location) },
+		AuthLimiter:       ratelimit.New(cfg.AuthRateLimit, cfg.AuthRateWindow, time.Now),
+		TrustProxyHeaders: cfg.TrustProxyHeaders,
 	})
 	return errors.Join(serve(ctx, logger, cfg.HTTPAddr, handler), db.Close())
 }

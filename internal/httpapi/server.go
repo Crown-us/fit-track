@@ -12,6 +12,7 @@ import (
 	"github.com/Crown-us/fit-track/internal/coach"
 	"github.com/Crown-us/fit-track/internal/food"
 	"github.com/Crown-us/fit-track/internal/meal"
+	"github.com/Crown-us/fit-track/internal/ratelimit"
 	"github.com/Crown-us/fit-track/internal/summary"
 	"github.com/Crown-us/fit-track/internal/user"
 	"github.com/Crown-us/fit-track/internal/weight"
@@ -27,6 +28,11 @@ type Deps struct {
 	Hasher auth.PasswordHasher
 	Logger *slog.Logger
 	Now    func() time.Time
+	// AuthLimiter throttles the register and login endpoints per client.
+	AuthLimiter *ratelimit.Limiter
+	// TrustProxyHeaders is true when a trusted reverse proxy sets
+	// X-Forwarded-For; see clientIP.
+	TrustProxyHeaders bool
 }
 
 type api struct {
@@ -40,6 +46,9 @@ type api struct {
 	weights   *weight.Service
 	summaries *summary.Service
 	coach     coach.Coach
+
+	authLimiter       *ratelimit.Limiter
+	trustProxyHeaders bool
 }
 
 // New builds the services from deps and returns the routed handler.
@@ -62,6 +71,9 @@ func New(deps Deps) http.Handler {
 			Profiles: users, Meals: meals, Workouts: workoutRepo, Weights: weights,
 		}, deps.Now),
 		coach: coach.NewRuleBased(),
+
+		authLimiter:       deps.AuthLimiter,
+		trustProxyHeaders: deps.TrustProxyHeaders,
 	}
 	mux := http.NewServeMux()
 	a.registerRoutes(mux)
@@ -74,8 +86,8 @@ func (a *api) registerRoutes(mux *http.ServeMux) {
 	// the mux's plain-text 404.
 	mux.Handle("/", a.handle(a.notFound))
 
-	mux.Handle("POST "+apiPrefix+"/auth/register", a.handle(a.register))
-	mux.Handle("POST "+apiPrefix+"/auth/login", a.handle(a.login))
+	mux.Handle("POST "+apiPrefix+"/auth/register", a.rateLimited(a.handle(a.register)))
+	mux.Handle("POST "+apiPrefix+"/auth/login", a.rateLimited(a.handle(a.login)))
 	mux.Handle("GET "+apiPrefix+"/profile", a.authenticated(a.getProfile))
 	mux.Handle("PUT "+apiPrefix+"/profile", a.authenticated(a.updateProfile))
 	a.registerFoodRoutes(mux)
