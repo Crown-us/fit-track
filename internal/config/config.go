@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strconv"
 	"time"
+	_ "time/tzdata" // Embedded so APP_TIMEZONE works on hosts and images without a timezone database.
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -15,6 +16,9 @@ const (
 	defaultHTTPAddr     = ":8080"
 	defaultDatabasePath = "fittrack.db"
 	defaultJWTTTL       = 24 * time.Hour
+	// defaultTimezone decides when a calendar day starts. The product targets
+	// Indonesian users, so the default is Western Indonesia Time.
+	defaultTimezone = "Asia/Jakarta"
 
 	// minJWTSecretBytes matches the HS256 key size (256 bits) so the secret
 	// is never weaker than the signature algorithm.
@@ -29,6 +33,9 @@ type Config struct {
 	JWTTTL       time.Duration
 	BcryptCost   int
 	LogLevel     slog.Level
+	// Location is the timezone in which "today" and week boundaries are
+	// evaluated.
+	Location *time.Location
 }
 
 // Load reads configuration through getenv (os.Getenv in production) so tests
@@ -48,6 +55,11 @@ func Load(getenv func(string) string) (Config, error) {
 	if err := loadOptional(getenv, &cfg); err != nil {
 		return Config{}, err
 	}
+	location, err := time.LoadLocation(valueOr(getenv("APP_TIMEZONE"), defaultTimezone))
+	if err != nil {
+		return Config{}, fmt.Errorf("APP_TIMEZONE: %w", err)
+	}
+	cfg.Location = location
 	return cfg, nil
 }
 

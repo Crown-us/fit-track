@@ -24,6 +24,7 @@ func TestLoad(t *testing.T) {
 		{name: "bad ttl", values: map[string]string{"JWT_SECRET": secret, "JWT_TTL": "soon"}, wantError: true},
 		{name: "bad cost", values: map[string]string{"JWT_SECRET": secret, "BCRYPT_COST": "99"}, wantError: true},
 		{name: "bad level", values: map[string]string{"JWT_SECRET": secret, "LOG_LEVEL": "loud"}, wantError: true},
+		{name: "bad timezone", values: map[string]string{"JWT_SECRET": secret, "APP_TIMEZONE": "Mars/Olympus"}, wantError: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -37,15 +38,17 @@ func TestLoad(t *testing.T) {
 
 func TestLoadOverrides(t *testing.T) {
 	cfg, err := Load(env(map[string]string{
-		"JWT_SECRET": strings.Repeat("s", minJWTSecretBytes),
-		"HTTP_ADDR":  ":9000",
-		"JWT_TTL":    "2h",
-		"LOG_LEVEL":  "debug",
+		"JWT_SECRET":   strings.Repeat("s", minJWTSecretBytes),
+		"HTTP_ADDR":    ":9000",
+		"JWT_TTL":      "2h",
+		"LOG_LEVEL":    "debug",
+		"APP_TIMEZONE": "Asia/Makassar",
 	}))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.HTTPAddr != ":9000" || cfg.JWTTTL != 2*time.Hour || cfg.LogLevel != slog.LevelDebug {
+	if cfg.HTTPAddr != ":9000" || cfg.JWTTTL != 2*time.Hour || cfg.LogLevel != slog.LevelDebug ||
+		cfg.Location.String() != "Asia/Makassar" {
 		t.Fatalf("overrides not applied: %+v", cfg)
 	}
 }

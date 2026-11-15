@@ -138,9 +138,10 @@ func (s *Service) CurrentWeekStart() time.Time {
 	return today.AddDate(0, 0, -daysSinceMonday)
 }
 
-// Today returns the current calendar day in UTC.
+// Today returns the current calendar day in the timezone of the injected
+// clock, expressed as midnight UTC so it compares cleanly with parsed dates.
 func (s *Service) Today() time.Time {
-	now := s.now().UTC()
+	now := s.now()
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 }
 

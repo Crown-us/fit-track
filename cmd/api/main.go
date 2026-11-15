@@ -66,7 +66,7 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 		Tokens: auth.NewTokenManager(cfg.JWTSecret, cfg.JWTTTL, time.Now),
 		Hasher: auth.NewPasswordHasher(cfg.BcryptCost),
 		Logger: logger,
-		Now:    time.Now,
+		Now:    func() time.Time { return time.Now().In(cfg.Location) },
 	})
 	return errors.Join(serve(ctx, logger, cfg.HTTPAddr, handler), db.Close())
 }
