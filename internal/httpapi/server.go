@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fittrack/internal/auth"
+	"fittrack/internal/food"
 	"fittrack/internal/user"
 )
 
@@ -28,6 +29,7 @@ type api struct {
 	tokens *auth.TokenManager
 	db     *sql.DB
 	users  *user.Service
+	foods  *food.Service
 }
 
 // New builds the services from deps and returns the routed handler.
@@ -38,6 +40,7 @@ func New(deps Deps) http.Handler {
 		tokens: deps.Tokens,
 		db:     deps.DB,
 		users:  users,
+		foods:  food.NewService(food.NewRepository(deps.DB)),
 	}
 	mux := http.NewServeMux()
 	a.registerRoutes(mux)
@@ -54,6 +57,7 @@ func (a *api) registerRoutes(mux *http.ServeMux) {
 	mux.Handle("POST "+apiPrefix+"/auth/login", a.handle(a.login))
 	mux.Handle("GET "+apiPrefix+"/profile", a.authenticated(a.getProfile))
 	mux.Handle("PUT "+apiPrefix+"/profile", a.authenticated(a.updateProfile))
+	a.registerFoodRoutes(mux)
 }
 
 func (a *api) health(w http.ResponseWriter, r *http.Request) error {
