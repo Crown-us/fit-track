@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"fittrack/internal/auth"
+	"fittrack/internal/coach"
 	"fittrack/internal/food"
 	"fittrack/internal/meal"
+	"fittrack/internal/summary"
 	"fittrack/internal/user"
 	"fittrack/internal/workout"
 )
@@ -27,27 +29,33 @@ type Deps struct {
 }
 
 type api struct {
-	logger   *slog.Logger
-	tokens   *auth.TokenManager
-	db       *sql.DB
-	users    *user.Service
-	foods    *food.Service
-	workouts *workout.Service
-	meals    *meal.Service
+	logger    *slog.Logger
+	tokens    *auth.TokenManager
+	db        *sql.DB
+	users     *user.Service
+	foods     *food.Service
+	workouts  *workout.Service
+	meals     *meal.Service
+	summaries *summary.Service
+	coach     coach.Coach
 }
 
 // New builds the services from deps and returns the routed handler.
 func New(deps Deps) http.Handler {
 	users := user.NewService(user.NewRepository(deps.DB), deps.Hasher, deps.Tokens, deps.Now)
 	foods := food.NewService(food.NewRepository(deps.DB))
+	meals := meal.NewService(meal.NewRepository(deps.DB), foods)
+	workoutRepo := workout.NewRepository(deps.DB)
 	a := &api{
-		logger:   deps.Logger,
-		tokens:   deps.Tokens,
-		db:       deps.DB,
-		users:    users,
-		foods:    foods,
-		workouts: workout.NewService(workout.NewRepository(deps.DB), users),
-		meals:    meal.NewService(meal.NewRepository(deps.DB), foods),
+		logger:    deps.Logger,
+		tokens:    deps.Tokens,
+		db:        deps.DB,
+		users:     users,
+		foods:     foods,
+		workouts:  workout.NewService(workoutRepo, users),
+		meals:     meals,
+		summaries: summary.NewService(users, meals, workoutRepo, deps.Now),
+		coach:     coach.NewRuleBased(),
 	}
 	mux := http.NewServeMux()
 	a.registerRoutes(mux)
@@ -67,6 +75,7 @@ func (a *api) registerRoutes(mux *http.ServeMux) {
 	a.registerFoodRoutes(mux)
 	a.registerWorkoutRoutes(mux)
 	a.registerMealRoutes(mux)
+	a.registerSummaryRoutes(mux)
 }
 
 func (a *api) health(w http.ResponseWriter, r *http.Request) error {
