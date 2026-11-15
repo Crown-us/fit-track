@@ -1,0 +1,718 @@
+openapi: 3.0.3
+info:
+  title: FitTrack API
+  version: 1.0.0
+  description: >
+    Fitness and calorie tracker with a rule-based coach. All dates are
+    calendar dates in YYYY-MM-DD format. Every endpoint except register,
+    login and /healthz requires a bearer token. Users can only access their
+    own data; another user's resource answers 404.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: auth
+  - name: profile
+  - name: foods
+  - name: workouts
+  - name: meals
+  - name: summary
+  - name: coach
+security:
+  - bearerAuth: []
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness and database check
+      security: []
+      responses:
+        "200":
+          description: The API and its database respond.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Create an account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Credentials" }
+      responses:
+        "201":
+          description: Account created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+                  token: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Exchange credentials for a token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Credentials" }
+      responses:
+        "200":
+          description: Authenticated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/profile:
+    get:
+      tags: [profile]
+      summary: Get the profile with computed energy needs
+      responses:
+        "200":
+          description: The profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/ProfileRequired" }
+    put:
+      tags: [profile]
+      summary: Create or replace the profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProfileInput" }
+      responses:
+        "200":
+          description: The saved profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/foods:
+    get:
+      tags: [foods]
+      summary: List global foods and your own custom foods
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive substring of the food name.
+          schema: { type: string }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: A page of foods.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Food" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    post:
+      tags: [foods]
+      summary: Create a custom food
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FoodInput" }
+      responses:
+        "201":
+          description: Custom food created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Food" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/foods/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [foods]
+      summary: Get a food
+      responses:
+        "200":
+          description: The food.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Food" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [foods]
+      summary: Replace one of your custom foods
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FoodInput" }
+      responses:
+        "200":
+          description: The updated food.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Food" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [foods]
+      summary: Delete one of your custom foods
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The food is still referenced by a logged meal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/activities:
+    get:
+      tags: [workouts]
+      summary: List supported activities and their MET values
+      responses:
+        "200":
+          description: Supported activities.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        activity: { $ref: "#/components/schemas/Activity" }
+                        met: { type: number, example: 9.8 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/workouts:
+    get:
+      tags: [workouts]
+      summary: List your workouts, newest first
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: A page of workouts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Workout" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    post:
+      tags: [workouts]
+      summary: Log a workout
+      description: Calories are estimated as MET x weight (kg) x hours with the current profile weight.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkoutInput" }
+      responses:
+        "201":
+          description: Workout logged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workout" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/ProfileRequired" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/workouts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [workouts]
+      summary: Get a workout
+      responses:
+        "200":
+          description: The workout.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workout" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [workouts]
+      summary: Replace a workout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkoutInput" }
+      responses:
+        "200":
+          description: The updated workout.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workout" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/ProfileRequired" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [workouts]
+      summary: Delete a workout
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/meals:
+    get:
+      tags: [meals]
+      summary: List your meals, newest first
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: A page of meals.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Meal" }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    post:
+      tags: [meals]
+      summary: Log a meal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MealInput" }
+      responses:
+        "201":
+          description: Meal logged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meal" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/meals/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [meals]
+      summary: Get a meal
+      responses:
+        "200":
+          description: The meal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meal" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [meals]
+      summary: Replace a meal and all of its items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MealInput" }
+      responses:
+        "200":
+          description: The updated meal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meal" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [meals]
+      summary: Delete a meal
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/summary/daily:
+    get:
+      tags: [summary]
+      summary: Energy balance of one day
+      description: remaining_kcal = target_kcal - calories_in + calories_burned.
+      parameters:
+        - name: date
+          in: query
+          description: Defaults to today in the server's APP_TIMEZONE.
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: The daily summary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DailySummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/ProfileRequired" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/summary/weekly:
+    get:
+      tags: [summary]
+      summary: Seven-day summary starting at week_start
+      parameters:
+        - $ref: "#/components/parameters/WeekStart"
+      responses:
+        "200":
+          description: The weekly summary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WeeklySummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/ProfileRequired" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /api/v1/coach/weekly:
+    get:
+      tags: [coach]
+      summary: Rule-based guidance for a week, in Indonesian
+      parameters:
+        - $ref: "#/components/parameters/WeekStart"
+      responses:
+        "200":
+          description: Coach messages with a disclaimer.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Advice" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/ProfileRequired" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    From:
+      name: from
+      in: query
+      description: Inclusive lower date bound.
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      description: Inclusive upper date bound.
+      schema: { type: string, format: date }
+    WeekStart:
+      name: week_start
+      in: query
+      description: First day of the 7-day window. Defaults to the Monday of the current week.
+      schema: { type: string, format: date }
+
+  responses:
+    BadRequest:
+      description: The body is not valid JSON or contains unknown fields.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, invalid or expired token, or wrong credentials.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: The resource is a global food and is read-only.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: The resource does not exist or belongs to another user.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: The resource already exists.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ProfileRequired:
+      description: The profile must be completed first (code profile_required).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationFailed:
+      description: One or more fields are invalid; details lists each of them.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - bad_request
+                - unauthorized
+                - invalid_credentials
+                - forbidden
+                - not_found
+                - conflict
+                - profile_required
+                - validation_failed
+                - internal_error
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+    Pagination:
+      type: object
+      properties:
+        limit: { type: integer }
+        offset: { type: integer }
+        total: { type: integer }
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 72 }
+    User:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string, format: email }
+    ProfileInput:
+      type: object
+      required: [sex, birth_date, height_cm, weight_kg, activity_level, goal]
+      properties:
+        sex: { type: string, enum: [male, female] }
+        birth_date: { type: string, format: date }
+        height_cm: { type: number, minimum: 50, maximum: 280 }
+        weight_kg: { type: number, minimum: 20, maximum: 500 }
+        activity_level:
+          type: string
+          enum: [sedentary, light, moderate, active, very_active]
+        goal: { type: string, enum: [lose, maintain, gain] }
+        weekly_workout_goal: { type: integer, minimum: 0, maximum: 14, default: 3 }
+    Profile:
+      allOf:
+        - $ref: "#/components/schemas/ProfileInput"
+        - type: object
+          properties:
+            bmr_kcal: { type: number, description: Mifflin-St Jeor. }
+            tdee_kcal: { type: number, description: BMR x activity multiplier. }
+            daily_target_kcal:
+              type: number
+              description: TDEE adjusted for the goal; never below BMR.
+    FoodInput:
+      type: object
+      required: [name, kcal_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        kcal_per_100g: { type: number, minimum: 0, maximum: 900 }
+        protein_g_per_100g: { type: number, minimum: 0 }
+        carbs_g_per_100g: { type: number, minimum: 0 }
+        fat_g_per_100g: { type: number, minimum: 0 }
+    Food:
+      allOf:
+        - $ref: "#/components/schemas/FoodInput"
+        - type: object
+          properties:
+            id: { type: integer, format: int64 }
+            source: { type: string }
+            verification_status:
+              type: string
+              enum: [verified, needs_verification, user_provided]
+            is_custom: { type: boolean }
+    Activity:
+      type: string
+      enum: [walking, running, cycling, gym_strength, skipping, swimming, yoga, badminton]
+    WorkoutInput:
+      type: object
+      required: [activity, duration_min, date]
+      properties:
+        activity: { $ref: "#/components/schemas/Activity" }
+        duration_min: { type: number, exclusiveMinimum: true, minimum: 0, maximum: 1440 }
+        distance_km: { type: number, nullable: true, minimum: 0, maximum: 1000 }
+        date: { type: string, format: date }
+    Workout:
+      allOf:
+        - $ref: "#/components/schemas/WorkoutInput"
+        - type: object
+          properties:
+            id: { type: integer, format: int64 }
+            calories_burned: { type: number }
+    Nutrition:
+      type: object
+      properties:
+        kcal: { type: number }
+        protein_g: { type: number }
+        carbs_g: { type: number }
+        fat_g: { type: number }
+    MealInput:
+      type: object
+      required: [date, meal_type, items]
+      properties:
+        date: { type: string, format: date }
+        meal_type: { type: string, enum: [breakfast, lunch, dinner, snack] }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [food_id, grams]
+            properties:
+              food_id: { type: integer, format: int64 }
+              grams: { type: number, exclusiveMinimum: true, minimum: 0, maximum: 5000 }
+    Meal:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        date: { type: string, format: date }
+        meal_type: { type: string, enum: [breakfast, lunch, dinner, snack] }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              food_id: { type: integer, format: int64 }
+              food_name: { type: string }
+              grams: { type: number }
+              nutrition: { $ref: "#/components/schemas/Nutrition" }
+        totals: { $ref: "#/components/schemas/Nutrition" }
+    Day:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        calories_in: { type: number }
+        calories_burned: { type: number }
+        protein_g: { type: number }
+        carbs_g: { type: number }
+        fat_g: { type: number }
+        meal_count: { type: integer }
+        workout_count: { type: integer }
+        is_elapsed:
+          type: boolean
+          description: False for days after today.
+    DailySummary:
+      allOf:
+        - $ref: "#/components/schemas/Day"
+        - type: object
+          properties:
+            target_kcal: { type: number }
+            remaining_kcal: { type: number }
+    WeeklySummary:
+      type: object
+      properties:
+        week_start: { type: string, format: date }
+        week_end: { type: string, format: date }
+        target_kcal: { type: number }
+        weight_kg: { type: number }
+        workout_goal: { type: integer }
+        workout_count: { type: integer }
+        total_calories_in: { type: number }
+        total_calories_burned: { type: number }
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items: { $ref: "#/components/schemas/Day" }
+    Advice:
+      type: object
+      properties:
+        week_start: { type: string, format: date }
+        week_end: { type: string, format: date }
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              rule:
+                type: string
+                enum:
+                  - on_track
+                  - no_recent_logs
+                  - workouts_below_goal
+                  - calories_over_target
+                  - calories_under_target
+                  - low_protein
+                  - sudden_change
+              text: { type: string, description: Indonesian. }
+        disclaimer: { type: string }

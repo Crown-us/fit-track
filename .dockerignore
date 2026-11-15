@@ -1,0 +1,9 @@
+.git
+.github
+.env
+bin
+*.db
+*.db-shm
+*.db-wal
+docs
+README.md
